@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sorveteria Donda - Controle de Estoque</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(180deg, #ffd9e6, #ffe6f0);
+      background-image: url('sorvete donda.png');
+      background-size: 450px;
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-attachment: fixed;
+      background-blend-mode: lighten;
+      color: #333;
+    }
+
+    header {
+      background: rgba(255, 105, 180, 0.85);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    main {
+      padding: 20px;
+      max-width: 900px;
+      margin: 20px auto;
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #ffe6ef;
+    }
+
+    input, select, button {
+      padding: 6px;
+      margin: 2px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background: #ff8fb1;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #ff6fa1;
+    }
+
+    .flex {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .low {
+      background: #ffcccc;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Controle de Estoque - Sorvetes Donda 🍦</h1>
+</header>
+<main>
+  <section>
+    <h2>Cadastro de Produtos</h2>
+    <div class="flex">
+      <input type="text" id="nome" placeholder="Nome do Produto">
+      <input type="text" id="categoria" placeholder="Categoria">
+      <input type="number" id="quantidade" placeholder="Quantidade" min="0">
+      <input type="number" id="preco" placeholder="Preço" min="0" step="0.01">
+      <button onclick="adicionarProduto()">Adicionar / Atualizar</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Produtos</h2>
+    <table id="tabelaProdutos">
+      <thead>
+        <tr><th>Nome</th><th>Categoria</th><th>Qtd</th><th>Preço</th><th>Ações</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Movimentações</h2>
+    <table id="tabelaMovimentos">
+      <thead>
+        <tr><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Data</th><th>Ações</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+let produtos = JSON.parse(localStorage.getItem('produtos') || '[]');
+let movimentos = JSON.parse(localStorage.getItem('movimentos') || '[]');
+
+function salvar() {
+  localStorage.setItem('produtos', JSON.stringify(produtos));
+  localStorage.setItem('movimentos', JSON.stringify(movimentos));
+  atualizarTabelas();
+}
+
+function adicionarProduto() {
+  const nome = document.getElementById('nome').value.trim();
+  const categoria = document.getElementById('categoria').value.trim();
+  const quantidade = Number(document.getElementById('quantidade').value);
+  const preco = Number(document.getElementById('preco').value);
+
+  if(!nome) return alert('Digite o nome do produto');
+
+  let produto = produtos.find(p => p.nome === nome);
+  if(produto){
+    produto.quantidade += quantidade;
+    produto.preco = preco;
+    produto.categoria = categoria;
+  } else {
+    produtos.push({nome, categoria, quantidade, preco});
+  }
+
+  movimentos.push({produto: nome, tipo:'Entrada', qtd: quantidade, data: new Date().toLocaleString()});
+  salvar();
+
+  document.getElementById('nome').value = '';
+  document.getElementById('categoria').value = '';
+  document.getElementById('quantidade').value = '';
+  document.getElementById('preco').value = '';
+}
+
+function venderProduto(nome) {
+  let produto = produtos.find(p => p.nome === nome);
+  if(!produto || produto.quantidade <= 0) return alert('Produto sem estoque');
+  produto.quantidade--;
+  movimentos.push({produto: nome, tipo:'Venda', qtd:1, data: new Date().toLocaleString()});
+  salvar();
+}
+
+function removerProduto(nome) {
+  if(!confirm('Deseja remover este produto?')) return;
+  produtos = produtos.filter(p => p.nome !== nome);
+  salvar();
+}
+
+function excluirMovimento(index) {
+  if(!confirm('Deseja excluir esta movimentação?')) return;
+  movimentos.splice(index, 1);
+  salvar();
+}
+
+function atualizarTabelas() {
+  const tbody = document.querySelector('#tabelaProdutos tbody');
+  tbody.innerHTML = '';
+  produtos.forEach(p => {
+    const tr = document.createElement('tr');
+    if(p.quantidade < 5) tr.classList.add('low');
+    tr.innerHTML = `
+      <td>${p.nome}</td>
+      <td>${p.categoria}</td>
+      <td>${p.quantidade}</td>
+      <td>R$ ${p.preco.toFixed(2)}</td>
+      <td>
+        <button onclick="venderProduto('${p.nome}')">Vender -1</button>
+        <button onclick="removerProduto('${p.nome}')">Remover</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const tbodyMov = document.querySelector('#tabelaMovimentos tbody');
+  tbodyMov.innerHTML = '';
+  movimentos.slice().reverse().forEach((m, i) => {
+    const indexReal = movimentos.length - 1 - i;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${m.produto}</td>
+      <td>${m.tipo}</td>
+      <td>${m.qtd}</td>
+      <td>${m.data}</td>
+      <td><button onclick="excluirMovimento(${indexReal})">Excluir</button></td>
+    `;
+    tbodyMov.appendChild(tr);
+  });
+}
+
+atualizarTabelas();
+</script>
+</body>
+</html>
